@@ -1,13 +1,22 @@
 import DepthAIPipeline
 import OpenCVProcessor
 import NetworkTablesHandler
+import ImageSaver
+
 import cv2
 
 class MainController:
+
+    # -- Flags -- #
+    capture_input_frame = False
+    capture_output_frame = False
+    capture_depth_frame = False
+
     def __init__(self):
         self.depthai_pipeline = DepthAIPipeline()
         self.opencv_processor = OpenCVProcessor(self.depthai_pipeline)
         self.network_tables_handler = NetworkTablesHandler(self)
+        self.image_saver = ImageSaver()
 
     def start(self):
 
@@ -38,6 +47,20 @@ class MainController:
                 cv2.imshow("Input Frame", color_frame)
                 cv2.imshow("Output Frame", processed_frame)
 
+
+                # If told to save the images, save them, and toggle the capture flags.
+                if self.capture_input_frame:
+                    self.image_saver.save_image(color_frame, "input_frame ")
+                    self.capture_input_frame = False
+
+                elif self.capture_output_frame:
+                    self.image_saver.save_image(processed_frame, "output_frame ")
+                    self.capture_output_frame = False
+                    
+                elif self.capture_depth_frame:
+                    self.image_saver.save_image(depth_frame, "depth_frame ")
+                    self.capture_depth_frame = False
+
                 # TODO: Sync time between roboRIO and Raspberry Pi if needed.
                 # Upload data to the robotRIO
                 self.network_tables_handler.upload_data(positions)
@@ -47,6 +70,24 @@ class MainController:
         finally:
             cv2.destroyAllWindows()
             self.depthai_pipeline.stop_pipeline()
+
+    def save_input_frame(self):
+        """
+        Saves the next frame captured by the color camera to the file.
+        """
+        self.capture_input_frame = True
+
+    def save_output_frame(self):
+        """
+        Saves the next processed frame captured by the color camera to the file.
+        """
+        self.capture_output_frame = True
+
+    def save_depth_frame(self):
+        """
+        Saves the next frame captured by the depth camera to the file.
+        """
+        self.capture_depth_frame = True
 
 if __name__ == "__main__":
 
