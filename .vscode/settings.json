@@ -1,6 +1,7 @@
 {
     "cSpell.words": [
         "depthai",
+        "EEPROM",
         "imshow",
         "ndarray",
         "networktables",
