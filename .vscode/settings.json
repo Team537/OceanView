@@ -3,7 +3,9 @@
         "depthai",
         "imshow",
         "ndarray",
+        "networktables",
         "opencv",
+        "roborio",
         "xout"
     ]
 }
