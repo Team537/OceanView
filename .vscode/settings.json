@@ -3,6 +3,7 @@
         "depthai",
         "EEPROM",
         "imshow",
+        "imwrite",
         "ndarray",
         "networktables",
         "opencv",
