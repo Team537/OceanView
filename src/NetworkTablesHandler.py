@@ -37,7 +37,6 @@ class NetworkTablesHandler:
 
             # Ensure position is a tuple of x, y, z
             x, y, z = position
-            
+
             # Upload the position values as an array
             self.vision_table.putNumberArray(f"Target{i}_Positions", [x, y, z])
-

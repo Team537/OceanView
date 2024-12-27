@@ -10,16 +10,19 @@ class MainController:
         self.network_tables_handler = NetworkTablesHandler(self)
 
     def start(self):
-        
+
         # Setup the DepthAI Pipeline and NetworkTables
         self.depthai_pipeline.start_pipeline()
         self.opencv_processor.start_processor()
         self.network_tables_handler.start_listening()
+
+        # Start the main program loop
         self.main_loop()
 
     def main_loop(self):
         try:
             while True:
+
                 # Get the next frame(s) from DepthAI
                 color_frame = self.depthai_pipeline.get_frame()
                 depth_frame = self.depthai_pipeline.get_depth_frame()
