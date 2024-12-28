@@ -45,13 +45,13 @@ class ImageSaver:
         # Ensure the folder exists
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
-
+        
         # Get the current system time.
         now = datetime.datetime.now()
         formatted_time = now.strftime("%B %d, %Y %H:%M:%S")
 
         # Construct the file path, adding the current time to the file name to ensure a unique name.
-        file_path = os.path.join(save_folder, filename + formatted_time)
+        file_path = os.path.join(save_folder, filename + formatted_time + ".png")
 
         # Save the image
         cv2.imwrite(file_path, image)
