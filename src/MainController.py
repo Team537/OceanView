@@ -1,9 +1,12 @@
+import threading
+import cv2
+import time
+ 
 import DepthAIPipeline
 import OpenCVProcessor
 import NetworkTablesHandler
 import ImageSaver
-
-import cv2
+import VideoStreamHandler
 
 class MainController:
 
@@ -17,6 +20,7 @@ class MainController:
         self.opencv_processor = OpenCVProcessor(self.depthai_pipeline)
         self.network_tables_handler = NetworkTablesHandler(self)
         self.image_saver = ImageSaver()
+        self.video_stream_handler = VideoStreamHandler()
 
     def start(self):
 
@@ -25,6 +29,9 @@ class MainController:
         self.opencv_processor.start_processor()
         self.network_tables_handler.start_listening()
 
+        # Start the Flask server in a separate thread
+        threading.Thread(target=self.video_stream_handler.run, daemon=True).start()
+        
         # Start the main program loop
         self.main_loop()
 
@@ -38,15 +45,21 @@ class MainController:
 
                 # If no frames are active, wait until a frame is available
                 if color_frame is None or depth_frame is None:
+                    time.sleep(0.01) # Prevent the CPU from running as fast as possible.
                     continue
 
                 # Process the new frame
                 processed_frame, positions = self.opencv_processor.process_frame(color_frame, depth_frame)
 
+                # Upload data to the robotRIO
+                self.network_tables_handler.upload_data(positions)
+
+                # Display the processed video frame
+                self.video_stream_handler.update_frame(processed_frame)
+
                 # Display the frames - Disable when running on PI.
                 cv2.imshow("Input Frame", color_frame)
                 cv2.imshow("Output Frame", processed_frame)
-
 
                 # If told to save the images, save them, and toggle the capture flags.
                 if self.capture_input_frame:
@@ -62,8 +75,6 @@ class MainController:
                     self.capture_depth_frame = False
 
                 # TODO: Sync time between roboRIO and Raspberry Pi if needed.
-                # Upload data to the robotRIO
-                self.network_tables_handler.upload_data(positions)
 
         except KeyboardInterrupt:
             print("Stopping System")

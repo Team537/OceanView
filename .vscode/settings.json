@@ -2,12 +2,19 @@
     "cSpell.words": [
         "depthai",
         "EEPROM",
+        "imencode",
         "imshow",
         "imwrite",
         "ndarray",
         "networktables",
         "opencv",
         "roborio",
+        "tobytes",
         "xout"
+    ],
+    "python.analysis.extraPaths": [
+        "./src/Vision Processing",
+        "./src/Data Transmission",
+        "./src/File Handling"
     ]
 }
