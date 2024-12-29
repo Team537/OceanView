@@ -8,13 +8,13 @@ class ImageSaver:
     DEFAULT_FOLDER_NAME = "Photos"
 
     def __init__(self, default_folder=None):
-         """
+        """
         Initializes the ImageSaver with a default folder.
 
         Args:
             default_folder (str): The default folder to save images. If None, uses the Photos folder in Documents.
         """
-         self.default_folder = default_folder or self.get_default_folder()
+        self.default_folder = default_folder or self.get_default_folder()
 
     @staticmethod
     def get_default_folder(self):
