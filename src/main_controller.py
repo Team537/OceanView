@@ -2,11 +2,11 @@ import threading
 import cv2
 import time
  
-import DepthAIPipeline
-import OpenCVProcessor
-import NetworkTablesHandler
-import ImageSaver
-import FlaskServerHandler
+import depthai_pipeline
+import opencv_processor
+import network_table_handler
+import image_saver
+import flask_server_handler
 
 class MainController:
 
@@ -16,11 +16,11 @@ class MainController:
     capture_depth_frame = False
 
     def __init__(self):
-        self.depthai_pipeline = DepthAIPipeline()
-        self.opencv_processor = OpenCVProcessor(self.depthai_pipeline)
-        self.network_tables_handler = NetworkTablesHandler(self)
-        self.image_saver = ImageSaver()
-        self.video_stream_handler = FlaskServerHandler()
+        self.depthai_pipeline = depthai_pipeline()
+        self.opencv_processor = opencv_processor(self.depthai_pipeline)
+        self.network_tables_handler = network_table_handler(self)
+        self.image_saver = image_saver()
+        self.video_stream_handler = flask_server_handler()
 
     def start(self):
 

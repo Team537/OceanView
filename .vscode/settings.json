@@ -19,6 +19,10 @@
     "python.analysis.extraPaths": [
         "./src/Vision Processing",
         "./src/Data Transmission",
-        "./src/File Handling"
+        "./src/File Handling",
+        "./src/data_transmission",
+        "./src/file_handeling",
+        "./src/file_handling",
+        "./src/vision_processing"
     ]
 }
