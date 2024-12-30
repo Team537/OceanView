@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Raspberry PI Web Dashboard</title>
+    <link rel="icon" href="{{ url_for('static', filename='Images/RaspberryPILogo.ico') }}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='Images/RaspberryPILogo.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+</head>
+
+<body>
+    <section class="section">
+        <img src="{{ url_for('static', filename='Images/LogoPI.webp') }}" loading="lazy" width="30" alt="">
+        <div class="text-block">Team 537 - Raspberry PI Status Dashboard<br></div>
+    </section>
+    <section class="section-2">
+        <h2>System Preformance</h2>
+        <h3>CPU and Memory Usage</h3>
+        <div class="div-block">
+            <div class="text-block-2"><strong class="bold-text-4">CPU Usage:</strong></div>
+            <div id="CPU"></div>
+        </div>
+        <div class="div-block">
+            <div class="text-block-2"><strong class="bold-text">Memory Usage:</strong></div>
+            <div id="Memory"></div>
+        </div>
+        <div class="div-block">
+            <div class="text-block-2"><strong class="bold-text-3">Disk Usage:</strong></div>
+            <div id="Disk"></div>
+        </div>
+        <div class="div-block">
+            <div class="text-block-2"><strong class="bold-text-3">Uptime:</strong></div>
+            <div id="Uptime"></div>
+        </div>
+        <div class="div-block">
+          <div class="text-block-2"><strong class="bold-text-6">CPU Temperature:</strong></div>
+          <div id="CPUTemperature"></div>
+        </div>
+        <h3>GPU Metrics</h3>
+        <div class="div-block">
+            <div class="text-block-2"><strong class="bold-text">GPU Memory:</strong></div>
+            <div id="GPUMemory"></div>
+        </div>
+        <div class="div-block">
+            <div class="text-block-2"><strong class="bold-text">GPU Temperature:</strong></div>
+            <div id="GPUTemperature"></div>
+        </div>
+        <h3>System Load</h3>
+        <div class="div-block">
+            <div class="text-block-2"><strong class="bold-text">1 Minute Load: </strong></div>
+            <div id="1-minute-load"></div>
+        </div>
+        <div class="div-block">
+            <div class="text-block-2"><strong class="bold-text">5 Minute Load: </strong></div>
+            <div id="5-minute-load"></div>
+        </div>
+        <div class="div-block">
+            <div class="text-block-2"><strong class="bold-text">15 Minute Load: </strong></div>
+            <div id="15-minute-load"></div>
+        </div>
+        <h2>Network Usage</h2>
+        <div class="div-block">
+          <div class="text-block-2"><strong class="bold-text-6">Bytes Sent:</strong></div>
+          <div id="BytesSent"></div>
+        </div>
+        <div class="div-block">
+          <div class="text-block-2"><strong class="bold-text-6">Bytes Received:</strong></div>
+          <div id="BytesReceived"></div>
+        </div>
+        <h2>Storage and System Health</h2>
+        <h3>Disk Health</h3>        
+        <div class="div-block">
+          <div class="text-block-2"><strong class="bold-text-4">Disk Read Count:</strong></div>
+          <div id="DiskReadCount"></div>
+        </div>
+        <div class="div-block">
+          <div class="text-block-2"><strong class="bold-text">Disk Write Count:</strong></div>
+          <div id="DiskWriteCount"></div>
+        </div>
+        <h3>Swap Usage</h3>
+        <div class="div-block">
+          <div class="text-block-2"><strong class="bold-text-5">Swap Used:</strong></div>
+          <div id="SwapUsed"></div>
+        </div>
+        <h2>Top Processes</h2>
+        <table>
+          <tr>
+            <th> Process </th>
+            <th> Process ID (PID) </th>
+            <th> CPU Usage (%) </th>
+          </tr>
+          <tbody id="TopProcesses"> </tbody>
+        </table>
+        <h2>System Logs</h2>
+        <div class="div-block terminal">
+            <div id="Terminal" class="text-block-2 terminal-entry">Text</div>
+        </div>
+    </section>
+    <script>
+        async function fetchData() {
+            try {
+                const response = await axios.get('/api/status');
+                const data = response.data;
+                
+                // CPU and Memory Usage
+                document.getElementById('CPU').textContent = data.cpu_usage + " %";
+                document.getElementById('Memory').textContent = `${data.memory_used.toFixed(3)} / ${data.memory_total.toFixed(3)}` + ' GB';
+                document.getElementById('Disk').textContent = `${data.disk_used.toFixed(3)} / ${data.disk_total.toFixed(3)}` + ' GB';
+                document.getElementById('Uptime').textContent = data.uptime;
+                document.getElementById('CPUTemperature').textContent = data.temperature + 'C' ;
+
+                // Update the GPU memory, temperature, and clock fields
+                document.getElementById('GPUMemory').textContent = data.gpu_info.gpu_mem + ' MB';
+                document.getElementById('GPUTemperature').textContent = data.gpu_info.gpu_temp;
+
+                // System Load
+                document.getElementById('1-minute-load').textContent = data.system_load["1min"].toFixed(5);
+                document.getElementById('5-minute-load').textContent = data.system_load["5min"].toFixed(5);
+                document.getElementById('15-minute-load').textContent = data.system_load["15min"].toFixed(5);
+
+                // Network Status
+                document.getElementById('BytesSent').textContent = data.network_usage.bytes_sent.toFixed(3) + ' bytes' ;
+                document.getElementById('BytesReceived').textContent = data.network_usage.bytes_recv.toFixed(3) + ' bytes' ;
+
+                // Disk Health
+                document.getElementById('DiskReadCount').textContent = data.disk_health.read_count;
+                document.getElementById('DiskWriteCount').textContent = data.disk_health.write_count;
+                document.getElementById('SwapUsed').textContent = data.swap_usage.used + ' MB';
+
+                // Clear the previous list of processes
+                const processesContainer = document.getElementById('TopProcesses');
+                processesContainer.innerHTML = '';
+                
+                // Display the top 10 processes
+                data.process_info.forEach((process, index) => {
+                    const processElement = document.createElement('tr');
+                    processElement.classList.add('process-item');
+                    processElement.innerHTML = `
+                        <tr>
+                            <td> <strong>${index + 1}. ${process.name}</strong><br> </td>
+                            <td> ${process.pid} </td>
+                            <td> ${process.cpu_percent} % </td>
+                        </tr>
+                    `;
+                    processesContainer.appendChild(processElement);
+                });
+
+                // Terminal
+                document.getElementById('Terminal').innerHTML = data.terminal_output;
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        // Call fetchData every 5 seconds
+        setInterval(fetchData, 1000);
+
+        // Call fetchData immediately on page load
+        fetchData();
+    </script>
+</body>
+
+</html>
