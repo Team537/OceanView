@@ -6,7 +6,7 @@ import DepthAIPipeline
 import OpenCVProcessor
 import NetworkTablesHandler
 import ImageSaver
-import VideoStreamHandler
+import FlaskServerHandler
 
 class MainController:
 
@@ -20,7 +20,7 @@ class MainController:
         self.opencv_processor = OpenCVProcessor(self.depthai_pipeline)
         self.network_tables_handler = NetworkTablesHandler(self)
         self.image_saver = ImageSaver()
-        self.video_stream_handler = VideoStreamHandler()
+        self.video_stream_handler = FlaskServerHandler()
 
     def start(self):
 

@@ -1,15 +1,19 @@
 {
     "cSpell.words": [
+        "camer",
         "depthai",
         "EEPROM",
+        "getloadavg",
         "imencode",
         "imshow",
         "imwrite",
+        "jsonify",
         "ndarray",
         "networktables",
         "opencv",
         "roborio",
         "tobytes",
+        "vcgencmd",
         "xout"
     ],
     "python.analysis.extraPaths": [
