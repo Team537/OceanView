@@ -121,7 +121,7 @@ class OpenCVProcessor:
             objectY = ((center_y - self.camera_intrinsics[1][2]) * distance_in_meters) / self.camera_intrinsics[1][1]
 
             # Add the calculated position to the array of positions.
-            positions.append((objectX, objectY, distance_in_meters))
+            positions.append({"x": objectX, "y": objectY, "z": distance_in_meters})
 
         # Return the object's positions.
         return positions
