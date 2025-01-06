@@ -4,9 +4,11 @@ import time
  
 import depthai_pipeline
 import opencv_processor
-import network_table_handler
 import image_saver
 import flask_server_handler
+
+import tcp_receiver
+import udp_sender
 
 class MainController:
 
@@ -15,19 +17,41 @@ class MainController:
     capture_output_frame = False
     capture_depth_frame = False
 
+    # -- Constants -- #
+    ROBORIO_IP = "10.5.37.2"
+    ROBORIO_PORT = 5000
+
+    # -- Storage -- #
+    robot_pose = {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "pitch" : 0,
+        "roll" : 0,
+        "yaw": 0
+    }
+
     def __init__(self):
+
+        # Processing
         self.depthai_pipeline = depthai_pipeline()
         self.opencv_processor = opencv_processor(self.depthai_pipeline)
-        self.network_tables_handler = network_table_handler(self)
+
+        # File Management
         self.image_saver = image_saver()
-        self.video_stream_handler = flask_server_handler()
+
+        # Data Transmission
+        self.tcp_receiver = tcp_receiver(self, ip=self.ROBORIO_IP)
+        self.udp_sender = udp_sender(ip=self.ROBORIO_IP)
+        self.flask_server_handler = flask_server_handler(self.ROBORIO_PORT)
 
     def start(self):
 
-        # Setup the DepthAI Pipeline and NetworkTables
+        # Setup the DepthAI Pipeline
         self.depthai_pipeline.start_pipeline()
         self.opencv_processor.start_processor()
-        self.network_tables_handler.start_listening()
+
+        self.tcp_receiver.start()
 
         # Start the Flask server in a separate thread
         threading.Thread(target=self.video_stream_handler.run, daemon=True).start()
@@ -52,10 +76,10 @@ class MainController:
                 processed_frame, positions = self.opencv_processor.process_frame(color_frame, depth_frame)
 
                 # Upload data to the robotRIO
-                self.network_tables_handler.upload_data(positions)
+                self.udp_sender.upload_data(positions)
 
                 # Display the processed video frame
-                self.video_stream_handler.update_frame(processed_frame)
+                self.flask_server_handler.update_frame(processed_frame)
 
                 # Display the frames - Disable when running on PI.
                 cv2.imshow("Input Frame", color_frame)
@@ -65,12 +89,10 @@ class MainController:
                 if self.capture_input_frame:
                     self.image_saver.save_image(color_frame, "input_frame ")
                     self.capture_input_frame = False
-
-                elif self.capture_output_frame:
+                if self.capture_output_frame:
                     self.image_saver.save_image(processed_frame, "output_frame ")
                     self.capture_output_frame = False
-                    
-                elif self.capture_depth_frame:
+                if self.capture_depth_frame:
                     self.image_saver.save_image(depth_frame, "depth_frame ")
                     self.capture_depth_frame = False
 
@@ -81,24 +103,22 @@ class MainController:
         finally:
             cv2.destroyAllWindows()
             self.depthai_pipeline.stop_pipeline()
+            self.udp_sender.close()
+            self.tcp_receiver.stop()
 
-    def save_input_frame(self):
+    def save_frames(self, save_input_frame, save_output_frame, save_depth_frame):
         """
-        Saves the next frame captured by the color camera to the file.
+        Saves the specified frames to the file.
         """
-        self.capture_input_frame = True
+        self.capture_input_frame = save_input_frame
+        self.capture_output_frame = save_output_frame
+        self.capture_depth_frame = save_depth_frame
 
-    def save_output_frame(self):
+    def update_robot_pose(self, pose):
         """
-        Saves the next processed frame captured by the color camera to the file.
+        Updates the robot's stored position. This is used to determine whether or not certain targets are blocked.
         """
-        self.capture_output_frame = True
-
-    def save_depth_frame(self):
-        """
-        Saves the next frame captured by the depth camera to the file.
-        """
-        self.capture_depth_frame = True
+        self.robot_pose = pose
 
 if __name__ == "__main__":
 

@@ -6,10 +6,13 @@ import subprocess
 import datetime
 
 class FlaskServerHandler:
-    def __init__(self):
+    def __init__(self, roborio_port):
         self.app = Flask(__name__)
         self.frame_lock = threading.Lock()  # Ensures thread-safe access to the frame
         self.current_frame = None  # Stores the latest frame
+
+        # Store the RoboRIO's port.
+        self.roborio_port = roborio_port;
 
         # Add routes
         self.app.add_url_rule("/", view_func=self.index, methods=["GET"])
@@ -18,8 +21,13 @@ class FlaskServerHandler:
         self.app.add_url_rule("/camera-stream", view_func=self.video_feed, methods=["GET"])
 
     def run(self):
-        """Start sending data to the server."""
-        self.app.run(host="0.0.0.0", port=5000)
+        """
+        Start sending data to the server.
+        
+        Params:
+        - roborio_port (int): The port the RoboRIO will use to access this server.
+        """
+        self.app.run(host="0.0.0.0", port=self.roborio_port)
 
     # --- Status Page Functionality --- #
     def index(self):
