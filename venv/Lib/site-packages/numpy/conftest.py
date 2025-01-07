@@ -8,7 +8,7 @@ import hypothesis
 import pytest
 import numpy
 
-from numpy._core._multiarray_tests import get_fpu_mode
+from numpy.core._multiarray_tests import get_fpu_mode
 
 
 _old_fpu_mode = None
@@ -40,8 +40,6 @@ hypothesis.settings.load_profile(
     "numpy-profile" if os.path.isfile(_pytest_ini) else "np.test() profile"
 )
 
-# The experimentalAPI is used in _umath_tests
-os.environ["NUMPY_EXPERIMENTAL_DTYPE_API"] = "1"
 
 def pytest_configure(config):
     config.addinivalue_line("markers",

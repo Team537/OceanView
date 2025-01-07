@@ -1,14 +1,20 @@
+# src/main_controller.py
 import threading
 import cv2
 import time
- 
-import depthai_pipeline
-import opencv_processor
-import image_saver
-import flask_server_handler
+import logging
 
-import tcp_receiver
-import udp_sender
+from map_management.branch_manager import BranchManager
+from map_management.kdtree_manager import KDTreeManager
+
+from depthai_pipeline import DepthAIPipeline
+from opencv_processor import OpenCVProcessor
+
+from file_handling.image_saver import ImageSaver
+
+from data_transmission.flask_server_handler import FlaskServerHandler
+from data_transmission.tcp_receiver import TCPReceiver
+from data_transmission.udp_sender import UDPSender
 
 class MainController:
 
@@ -21,41 +27,45 @@ class MainController:
     ROBORIO_IP = "10.5.37.2"
     ROBORIO_PORT = 5000
 
-    # -- Storage -- #
-    robot_pose = {
-        "x": 0,
-        "y": 0,
-        "z": 0,
-        "pitch" : 0,
-        "roll" : 0,
-        "yaw": 0
-    }
-
     def __init__(self):
 
         # Processing
-        self.depthai_pipeline = depthai_pipeline()
-        self.opencv_processor = opencv_processor(self.depthai_pipeline)
+        self.depthai_pipeline = DepthAIPipeline()
+        self.opencv_processor = OpenCVProcessor(self.depthai_pipeline)
 
         # File Management
-        self.image_saver = image_saver()
+        self.image_saver = ImageSaver()
 
         # Data Transmission
-        self.tcp_receiver = tcp_receiver(self, ip=self.ROBORIO_IP)
-        self.udp_sender = udp_sender(ip=self.ROBORIO_IP)
-        self.flask_server_handler = flask_server_handler(self.ROBORIO_PORT)
+        self.tcp_receiver = TCPReceiver(self, ip=self.ROBORIO_IP)
+        self.udp_sender = UDPSender(ip=self.ROBORIO_IP)
+        self.flask_server_handler = FlaskServerHandler(self.ROBORIO_PORT)
+
+        # Map Management
+        self.branch_manager = BranchManager('config/scoring_positions.yml')
+        self.kdtree_manager = KDTreeManager(self.branch_manager)
+
+        # Initialize robot_pose
+        self.robot_pose = {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "pitch" : 0,
+            "roll" : 0,
+            "yaw": 0
+        }
 
     def start(self):
-
         # Setup the DepthAI Pipeline
         self.depthai_pipeline.start_pipeline()
         self.opencv_processor.start_processor()
 
+        # Start Data Transmission
         self.tcp_receiver.start()
 
         # Start the Flask server in a separate thread
-        threading.Thread(target=self.video_stream_handler.run, daemon=True).start()
-        
+        threading.Thread(target=self.flask_server_handler.run, daemon=True).start()
+
         # Start the main program loop
         self.main_loop()
 
@@ -63,13 +73,26 @@ class MainController:
         try:
             while True:
 
+                # Define a query point based on robot's current position
+                query_point = (self.robot_pose['x'], self.robot_pose['z'])
+
+                # Search for the closest branches
+                closest_branches = self.kdtree_manager.search_branches(query_point, k=4)
+
+                # Print the results
+                print("\nClosest Branches and Their Levels:")
+                for branch_name, levels in closest_branches.items():
+                    print(f"Branch {branch_name}:")
+                    for level, pos in levels.items():
+                        print(f"  {level}: {pos}")
+
                 # Get the next frame(s) from DepthAI
                 color_frame = self.depthai_pipeline.get_frame()
                 depth_frame = self.depthai_pipeline.get_depth_frame()
 
                 # If no frames are active, wait until a frame is available
                 if color_frame is None or depth_frame is None:
-                    time.sleep(0.01) # Prevent the CPU from running as fast as possible.
+                    time.sleep(0.01)  # Prevent the CPU from running as fast as possible.
                     continue
 
                 # Process the new frame
@@ -87,19 +110,19 @@ class MainController:
 
                 # If told to save the images, save them, and toggle the capture flags.
                 if self.capture_input_frame:
-                    self.image_saver.save_image(color_frame, "input_frame ")
+                    self.image_saver.save_image(color_frame, "input_frame")
                     self.capture_input_frame = False
                 if self.capture_output_frame:
-                    self.image_saver.save_image(processed_frame, "output_frame ")
+                    self.image_saver.save_image(processed_frame, "output_frame")
                     self.capture_output_frame = False
                 if self.capture_depth_frame:
-                    self.image_saver.save_image(depth_frame, "depth_frame ")
+                    self.image_saver.save_image(depth_frame, "depth_frame")
                     self.capture_depth_frame = False
-
-                # TODO: Sync time between roboRIO and Raspberry Pi if needed.
 
         except KeyboardInterrupt:
             print("Stopping System")
+        except Exception as e:
+            logging.error(f"An unexpected error occurred: {e}")
         finally:
             cv2.destroyAllWindows()
             self.depthai_pipeline.stop_pipeline()
@@ -120,7 +143,30 @@ class MainController:
         """
         self.robot_pose = pose
 
+    def switch_alliance(self, alliance):
+        """
+        Switches the alliance between red and blue.
+        """
+        logging.info(f"Switching alliance to {alliance.capitalize()} alliance.")
+
+        try:
+            # Update the alliance in BranchManager
+            self.branch_manager.set_alliance(alliance)
+            logging.info(f"Alliance set to {alliance.capitalize()} in BranchManager.")
+
+            # Rebuild the KDTree
+            self.kdtree_manager.build_kdtree()
+            logging.info("KDTree rebuilt successfully.")
+
+        except Exception as e:
+            logging.error(f"Failed to switch alliance: {e}")
+        else:
+            print(f"Alliance switched to {alliance.capitalize()} successfully.")
+
 if __name__ == "__main__":
+
+    # Configure logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     # Create and start the main controller
     controller = MainController()
