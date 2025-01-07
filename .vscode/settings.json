@@ -9,6 +9,7 @@
         "imwrite",
         "jsonify",
         "kdtree",
+        "levelname",
         "ndarray",
         "networktables",
         "opencv",
@@ -24,6 +25,7 @@
         "./src/data_transmission",
         "./src/file_handeling",
         "./src/file_handling",
-        "./src/vision_processing"
+        "./src/vision_processing",
+        "./src/map_managment"
     ]
 }
