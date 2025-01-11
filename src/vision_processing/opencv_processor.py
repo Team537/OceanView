@@ -22,7 +22,7 @@ class OpenCVProcessor:
         
         # Assuming depthai_pipeline is correctly initialized and started,
         # and camera_intrinsics is set using the DepthAI device calibration
-        self.camera_intrinsics = self.get_color_camera_intrinsics()
+        self.camera_intrinsics = self.depthai_pipeline.get_color_camera_intrinsics()
 
     def mask_image(self, frame):
         """
