@@ -39,7 +39,7 @@ class UDPSender:
             data['packet_number'] = self.packet_number
             self.packet_number += 1
 
-            # Serialize the data to a JSON string
+            # Serialize the data to a JSON string 
             json_data = json.dumps(data)
 
             # Send the JSON-encoded data as a UDP datagram
