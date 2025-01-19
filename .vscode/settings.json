@@ -27,6 +27,7 @@
         "./src/file_handeling",
         "./src/file_handling",
         "./src/vision_processing",
-        "./src/map_managment"
+        "./src/map_managment",
+        "./src/map_management"
     ]
 }

@@ -6,6 +6,7 @@ import logging
 
 from map_management.branch_manager import BranchManager
 from map_management.kdtree_manager import KDTreeManager
+from block_detection_manager import BlockDetectionManager
 
 from depthai_pipeline import DepthAIPipeline
 from opencv_processor import OpenCVProcessor
@@ -44,6 +45,8 @@ class MainController:
         # Map Management
         self.branch_manager = BranchManager('config/scoring_positions.yml')
         self.kdtree_manager = KDTreeManager(self.branch_manager)
+
+        self.block_detector = BlockDetectionManager(branch_manager=self.branch_manager,algae_block_threshold=0.5,coral_block_threshold=0.5)
 
         # Initialize robot_pose
         self.robot_pose = {
@@ -96,10 +99,25 @@ class MainController:
                     continue
 
                 # Process the new frame
-                processed_frame, positions = self.opencv_processor.process_frame(color_frame, depth_frame)
+                processed_frame, algae_positions, coral_positions = self.opencv_processor.process_frame(color_frame, depth_frame)
 
-                # Upload data to the robotRIO
-                self.udp_sender.upload_data(positions)
+                # Build KD-trees from new obstacle data
+                self.block_detector.build_obstacle_kdtrees(algae_positions=algae_positions, coral_positions=coral_positions)
+
+                # Check which scoring locations are available or blocked by algae
+                blocked_result = self.block_detector.check_blocked_locations(valid_levels=['L2','L3','L4'])
+                available = blocked_result["available"]
+                algae_blocked = blocked_result["algae_blocked"]
+
+                # Prepare the algae_positions list for JSON (already in desired format)
+                # Ensure that algae_positions is a list of dicts with "x", "y", "z"
+
+                # Send the data to RoboRIO
+                self.udp_sender.upload_data(
+                    available=available,
+                    algae_blocked=algae_blocked,
+                    algae_positions=algae_positions
+                )
 
                 # Display the processed video frame
                 self.flask_server_handler.update_frame(processed_frame)

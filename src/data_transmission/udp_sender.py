@@ -25,26 +25,40 @@ class UDPSender:
         self.roborio_ip = ip
         self.port = port
 
-    def upload_data(self, data):
+    def build_upload_data(self, available, algae_blocked, algae_positions):
         """
-        Sends data as a JSON-encoded UDP packet to the target.
-
+        Build a dictionary with the three arrays stored in parallel.
+        
         Params:
-            data: The data to send (must be serializable to JSON).
+            available: a list of dicts, e.g., [{"branch": "B1", "level": "L2"}, ...]
+            algae_blocked: a list of dicts, e.g., [{"branch": "B2", "level": "L3"}, ...]
+            algae_positions: a list of dicts, e.g., [{"x": 1.23, "y": 0.45, "z": 2.34}, ...]
+        Returns: 
+            A dictionary ready for JSON encoding.
+        """
+        data = {
+            "packet_number": self.packet_number,
+            "available": available,
+            "algae_blocked": algae_blocked,
+            "algae_positions": algae_positions
+        }
+        self.packet_number += 1
+        return data
+
+    def upload_data(self, available, algae_blocked, algae_positions):
+        """
+        Sends data as a JSON-encoded UDP packet to the RoboRIO.
+        
+        Params:
+            available: list of scoring positions available (each dict contains branch and level info).
+            algae_blocked: list of scoring positions that are blocked by algae.
+            algae_positions: list of raw algae positions (each dict contains x, y, z).
         """
         try:
-            # Add the packet number to the data dictionary
-            if not isinstance(data, dict):
-                raise ValueError("Data must be a dictionary to include packet_number.")
-            data['packet_number'] = self.packet_number
-            self.packet_number += 1
+            data = self.build_upload_data(available, algae_blocked, algae_positions)
 
-            # Serialize the data to a JSON string 
             json_data = json.dumps(data)
-
-            # Send the JSON-encoded data as a UDP datagram
             self.udp_socket.sendto(json_data.encode('utf-8'), (self.roborio_ip, self.port))
-
         except json.JSONDecodeError as e:
             print(f"Error encoding data to JSON: {e}")
         except Exception as e:
