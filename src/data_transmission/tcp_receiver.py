@@ -16,8 +16,8 @@ class TCPReceiver:
         self.ip = ip
         self.port = port
         self.server_socket = None
-        self.running = False  # Flag to control the server loop
-        self.client_thread = None  # Thread for client handling
+        self.running = False
+        self.client_thread = None
 
     def start(self):
         """
@@ -40,17 +40,20 @@ class TCPReceiver:
         try:
             while self.running:
                 try:
-                    self.server_socket.settimeout(1.0)  # Prevent blocking indefinitely
+                    # Timeout so we can check `self.running` periodically
+                    self.server_socket.settimeout(1.0)
                     client_socket, client_address = self.server_socket.accept()
                     print(f"Connection received from {client_address}")
 
-                    # Handle the client in a separate thread
+                    # Handle this client in a separate thread
                     self.client_thread = threading.Thread(
                         target=self.handle_client, args=(client_socket,), daemon=True
                     )
                     self.client_thread.start()
+
                 except socket.timeout:
-                    continue  # Allow loop to check the `running` flag
+                    continue  # Just loop again and check self.running
+
         except Exception as e:
             print(f"Error in server loop: {e}")
         finally:
@@ -67,17 +70,20 @@ class TCPReceiver:
         try:
             with client_socket:
                 while self.running:
-                    data = client_socket.recv(1024)  # Receive up to 1024 bytes
+                    data = client_socket.recv(1024)  # Up to 1024 bytes per chunk
                     if not data:
                         print("Client disconnected.")
                         break
 
-                    # Decode and process the received data
+                    # Decode (optionally specify UTF-8 explicitly): data.decode("utf-8").strip()
                     message = data.decode().strip()
                     try:
-                        parsed_data = json.loads(message)  # Parse JSON
+                        parsed_data = json.loads(message)
                         print(f"Received JSON: {parsed_data}")
-                        self.process_data(parsed_data)  # Custom method to handle parsed data
+
+                        # Process the parsed data
+                        self.process_data(parsed_data)
+
                     except json.JSONDecodeError:
                         print(f"Invalid JSON received: {message}")
 
@@ -88,20 +94,44 @@ class TCPReceiver:
 
     def process_data(self, parsed_data):
         """
-        Processes the parsed JSON data.
-        Param:
-            parsed_data: The parsed JSON data as a dictionary or list.
+        Processes the parsed JSON data, calling main_controller methods as needed.
+
+        :param parsed_data: Dictionary (or list) from the JSON.
         """
-        print(f"Processing data: {parsed_data}")
+        # 1) If "capture" data is present, handle it
+        if "capture" in parsed_data and parsed_data["capture"] is not None:
+            # Example: the 'capture' might contain frames to be saved
+            capture_info = parsed_data["capture"]
+            # e.g. {"inputFrame": "...", "outputFrame": "...", "depthFrame": "..."}
+            input_frame  = capture_info.get("inputFrame")
+            output_frame = capture_info.get("outputFrame")
+            depth_frame  = capture_info.get("depthFrame")
 
-        # Save images to the file if told to do so.
-        if parsed_data.capture is not None:
-            self.main_controller.save_frames(parsed_data.capture.inputFrame, parsed_data.capture.outputFrame, parsed_data.capture.depthFrame)
+            self.main_controller.save_frames(
+                input_frame, output_frame, depth_frame
+            )
 
-        # Update the robot's position if told to do so.
-        if parsed_data.robotPose is not None:
-            print("Updating robot's position to: {parsed_data.robotPose}")
-            self.main_controller.update_robot_pose(parsed_data.robotPose)
+        # 2) If "robot_pose" is present, handle it
+        #    This might match what your RoboRIO sends, e.g.:
+        #    {
+        #      "pose": {"x": 1.23, "y": 4.56, "heading_rad": 0.78},
+        #      "timestamp": 1670000000.0
+        #    }
+        if "robot_pose" in parsed_data:
+            robot_pose = parsed_data["robot_pose"]
+            print(f"Updating robot's position to: {robot_pose}")
+            # If your main_controller expects x, y, heading, do something like:
+            self.main_controller.update_robot_pose(robot_pose)
+
+        # 3) If the robot sends simpler keys, e.g. "x", "y", "heading":
+        #    If your JSON is like: {"x": 1.23, "y": 4.56, "heading": 0.78}, use:
+        """
+        if "x" in parsed_data and "y" in parsed_data and "heading" in parsed_data:
+            x = parsed_data["x"]
+            y = parsed_data["y"]
+            heading = parsed_data["heading"]
+            self.main_controller.update_robot_pose({"x": x, "y": y, "heading": heading})
+        """
 
     def stop(self):
         """
@@ -110,7 +140,7 @@ class TCPReceiver:
         print("Stopping TCPReceiver...")
         self.running = False
         if self.client_thread and self.client_thread.is_alive():
-            self.client_thread.join()  # Wait for the client thread to finish
+            self.client_thread.join()
         if self.server_socket:
             try:
                 self.server_socket.close()
