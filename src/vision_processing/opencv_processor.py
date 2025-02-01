@@ -7,8 +7,8 @@ class OpenCVProcessor:
     #               CONSTANTS & THRESHOLDS
     # ------------------------------------------------
     # HSV Thresholds
-    ALGAE_LOWER_BOUND = np.array([0, 0, 0])
-    ALGAE_UPPER_BOUND = np.array([255, 255, 255])
+    ALGAE_LOWER_BOUND = np.array([81,110,120])
+    ALGAE_UPPER_BOUND = np.array([99,255,255])
 
     CORAL_LOWER_BOUND = np.array([0, 0, 0])
     CORAL_UPPER_BOUND = np.array([255, 255, 255])
@@ -52,7 +52,7 @@ class OpenCVProcessor:
             numpy.ndarray: The binary mask of the detected color.
         """
         # Convert the image to HSV
-        hsv_image = cv2.cvtColor(frame_bgr, cv2.COLOR_RGB2HSV)
+        hsv_image = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
 
         # Create a binary mask based on HSV bounds
         mask = cv2.inRange(hsv_image, lower_bound, upper_bound)
@@ -111,44 +111,113 @@ class OpenCVProcessor:
 
         return bounding_boxes
 
-    def calculate_positions(self, depth_frame, object_bboxes):
+    def calculate_positions(self, color_frame, depth_frame, object_bboxes):
         """
-        Calculate the position of objects from the camera using depth data.
+        Calculate the position of objects from the camera using both the color and depth frames.
+        This version accounts for different image resolutions and uses bilinear interpolation
+        to take advantage of subpixel depth values.
 
         Args:
-            depth_frame (numpy.ndarray): The depth frame to calculate distances from.
+            color_frame (numpy.ndarray): The color (preview) frame.
+            depth_frame (numpy.ndarray): The depth frame.
             object_bboxes (list): A list of bounding boxes of the detected objects (x, y, w, h).
 
         Returns:
-            list: List of dictionaries with keys {"x", "y", "z"} for each object.
+            list: List of dictionaries with keys {"x", "y", "z"} for each object (in meters).
         """
         positions = []
-
         if self.camera_intrinsics is None:
-            raise ValueError(
-                "Camera intrinsics must be set before calling calculate_positions()."
-            )
+            raise ValueError("Camera intrinsics must be set before calling calculate_positions().")
 
-        fx = self.camera_intrinsics[0][0]  # Focal length x
-        fy = self.camera_intrinsics[1][1]  # Focal length y
-        cx = self.camera_intrinsics[0][2]  # Optical center x
-        cy = self.camera_intrinsics[1][2]  # Optical center y
+        # -------------------------------------------------------------------------
+        # 1. Figure out the scaling between the various image sizes.
+        #
+        #    (a) The intrinsics returned by calibration are for the full sensor image.
+        #        In this pipeline the color camera is set to 1080p (1920x1080).
+        #        (Change these if your sensor is different.)
+        sensor_width, sensor_height = 1080, 720
 
-        for x, y, w, h in object_bboxes:
-            # Calculate the center of the bounding box
-            # TODO: Check if it is more accurate to get the position of the top of the bounding box.
-            center_x = x + w // 2
-            center_y = y + h // 2
+        #    (b) Get the color frame size (the preview image may be downscaled)
+        color_h, color_w = color_frame.shape[:2]
 
-            # Depth value at the center of the bounding box (in mm, e.g.)
-            depth_value = depth_frame[center_y, center_x]
+        #    (c) Get the depth frame size (set by depth.setInputResolution)
+        depth_h, depth_w = depth_frame.shape[:2]
 
-            # Convert to meters (assumes depth_value is in millimeters)
+        #    (d) Scale the calibration intrinsics from sensor size to the preview size.
+        scale_color_x = color_w / sensor_width
+        scale_color_y = color_h / sensor_height
+
+        fx = self.camera_intrinsics[0][0]
+        fy = self.camera_intrinsics[1][1]
+        cx = self.camera_intrinsics[0][2]
+        cy = self.camera_intrinsics[1][2]
+
+        # Effective intrinsics for the color preview:
+        fx_eff = fx * scale_color_x
+        fy_eff = fy * scale_color_y
+        cx_eff = cx * scale_color_x
+        cy_eff = cy * scale_color_y
+
+        #    (e) Compute the scale factors from the color (preview) image to the depth image.
+        scale_depth_x = depth_w / color_w
+        scale_depth_y = depth_h / color_h
+
+        # -------------------------------------------------------------------------
+        # 2. For each detected object, map its center from the color image to the depth image,
+        #    sample the depth using bilinear interpolation (for subpixel accuracy),
+        #    and then reproject using the effective intrinsics.
+        for bbox in object_bboxes:
+            x, y, w, h = bbox
+
+            # Center of bounding box in the color image (use float arithmetic)
+            center_color_x = x + (w / 2.0)
+            center_color_y = y + (h / 2.0)
+
+            # Map center from color image coordinates to depth image coordinates.
+            center_depth_x = center_color_x * scale_depth_x
+            center_depth_y = center_color_y * scale_depth_y
+
+            # --- Use bilinear interpolation on the depth frame ---
+            # Make sure we’re within bounds
+            if center_depth_x < 0 or center_depth_x >= depth_w - 1 or \
+                    center_depth_y < 0 or center_depth_y >= depth_h - 1:
+                continue  # Skip this bbox if mapping goes out of bounds
+
+            # Compute the surrounding integer coordinates:
+            x0 = int(np.floor(center_depth_x))
+            x1 = min(x0 + 1, depth_w - 1)
+            y0 = int(np.floor(center_depth_y))
+            y1 = min(y0 + 1, depth_h - 1)
+            # The fractional parts:
+            dx = center_depth_x - x0
+            dy = center_depth_y - y0
+
+            # Get the four neighboring depth values.
+            d00 = float(depth_frame[y0, x0])
+            d01 = float(depth_frame[y0, x1])
+            d10 = float(depth_frame[y1, x0])
+            d11 = float(depth_frame[y1, x1])
+            # Bilinear interpolation:
+            depth_value = (d00 * (1 - dx) * (1 - dy) +
+                           d01 * dx * (1 - dy) +
+                           d10 * (1 - dx) * dy +
+                           d11 * dx * dy)
+
+            # If no valid depth is found, skip this detection.
+            if depth_value == 0:
+                continue
+
+            # Convert from millimeters to meters (if your depth unit is mm)
             distance_m = depth_value / 1000.0
 
-            # Project to 3D space
-            obj_x = (center_x - cx) * distance_m / fx
-            obj_y = (center_y - cy) * distance_m / fy
+            # ---------------------------------------------------------------------
+            # 3. Reproject the object center to 3D space.
+            # Note: We use the original (color) center along with the effective intrinsics.
+            # The standard pinhole projection gives:
+            #      X = (u - cx_eff) * Z / fx_eff
+            #      Y = (v - cy_eff) * Z / fy_eff
+            obj_x = (center_color_x - cx_eff) * distance_m / fx_eff
+            obj_y = (center_color_y - cy_eff) * distance_m / fy_eff
 
             positions.append({"x": obj_x, "y": obj_y, "z": distance_m})
 
@@ -231,8 +300,8 @@ class OpenCVProcessor:
         coral_bboxes = self.extract_bounding_boxes(coral_contours)
 
         # 4. Calculate 3D positions
-        algae_positions = self.calculate_positions(depth_frame, algae_bboxes)
-        coral_positions = self.calculate_positions(depth_frame, coral_bboxes)
+        algae_positions = self.calculate_positions(color_frame_bgr, depth_frame, algae_bboxes)
+        coral_positions = self.calculate_positions(color_frame_bgr, depth_frame, coral_bboxes)
 
         # 5. Draw bounding boxes on the image
         processed_frame = color_frame_bgr.copy()

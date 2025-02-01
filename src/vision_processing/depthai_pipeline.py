@@ -1,6 +1,10 @@
 import depthai as dai
 
 class DepthAIPipeline:
+
+    # Settings
+    LR_CHECK = False
+
     def __init__(self):
         self.pipeline = None
         self.device = None
@@ -18,13 +22,14 @@ class DepthAIPipeline:
 
         # Create camera nodes.
         camera = pipeline.createColorCamera()
-        camera.setResolution(dai.ColorCameraProperties.SensorResolution.THE_720_P)
+        camera.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+        camera.setPreviewSize(1080, 720)
         camera.setInterleaved(False)
         camera.setFps(35)
         camera.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
 
         # Enable undistortion
-        camera.setCameraConfig(dai.CameraConfig.ISP, enableUndistortion=True)
+        # camera.setCameraConfig(dai.CameraConfig.ISP, enableUndistortion=True)
 
         # Create Mono cameras for depth calculation
         left = pipeline.createMonoCamera()
@@ -38,11 +43,24 @@ class DepthAIPipeline:
         right.out.link(depth.right)
 
         # Configure Depth Node Settings
+        # Create a node that will produce the depth map (using disparity output as it's easier to visualize depth this way)
+        depth.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.HIGH_DENSITY)
         depth.setOutputRectified(True)
         depth.setLeftRightCheck(True)
-        depth.setExtendedDisparity(True)
+        depth.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_3x3)
+        depth.setExtendedDisparity(False)
         depth.setSubpixel(True)
-        depth.setResolution(dai.StereoDepthProperties.SensorResolution.THE_720P)
+        depth.setInputResolution(640, 480)
+        depth.setOutputSize(640, 480)
+
+        config = depth.initialConfig.get()
+        config.postProcessing.speckleFilter.enable = False
+        config.postProcessing.speckleFilter.speckleRange = 25
+        config.postProcessing.temporalFilter.enable = True
+        config.postProcessing.spatialFilter.enable = True
+        config.postProcessing.spatialFilter.holeFillingRadius = 2
+        config.postProcessing.spatialFilter.numIterations = 1
+        depth.initialConfig.set(config)
 
         # Create XLink output for video and depth streams
         xout_video = pipeline.createXLinkOut()
@@ -71,6 +89,8 @@ class DepthAIPipeline:
         self.video_queue = self.device.getOutputQueue(name="video", maxSize=4, blocking=False)
         self.depth_queue = self.device.getOutputQueue(name="depth", maxSize=4, blocking=False)
 
+        self.video_queue.get().getRaw()
+
     def stop_pipeline(self):
         """
         Stops the pipeline and cleans up.
@@ -81,7 +101,7 @@ class DepthAIPipeline:
         """
         Returns the color camera's intrinsic camera matrix.
         """
-        return self.device.readCalibration().getCameraIntrinsics()
+        return self.device.readCalibration().getCameraIntrinsics(dai.CameraBoardSocket.RGB)
 
     def get_frame(self):
         """
