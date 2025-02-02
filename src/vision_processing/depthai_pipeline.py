@@ -73,7 +73,7 @@ class DepthAIPipeline:
 
         # Optional: Adjust post-processing filters for the depth map.
         config = depth.initialConfig.get()
-        config.postProcessing.speckleFilter.enable = True
+        config.postProcessing.speckleFilter.enable = False
         config.postProcessing.speckleFilter.speckleRange = 25
         config.postProcessing.temporalFilter.enable = True
         config.postProcessing.spatialFilter.enable = True
