@@ -50,7 +50,7 @@ class ImageSaver:
         formatted_time = now.strftime("_%Y-%m-%d_%H-%M-%S")
 
         # Construct the file path, adding the current time to the file name to ensure a unique name.
-        file_path = os.path.join(save_folder, f"{filename}{formatted_time}.jpg")
+        file_path = os.path.join(save_folder, f"{filename}{formatted_time}.png")
 
         # Save the image
         sucsess = cv2.imwrite(file_path, image)

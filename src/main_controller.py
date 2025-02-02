@@ -4,12 +4,13 @@ import cv2
 import time
 import logging
 
+from map_management.branch import Branch
 from map_management.branch_manager import BranchManager
 from map_management.kdtree_manager import KDTreeManager
-from block_detection_manager import BlockDetectionManager
+from map_management.block_detection_manager import BlockDetectionManager
 
-from depthai_pipeline import DepthAIPipeline
-from opencv_processor import OpenCVProcessor
+from vision_processing.depthai_pipeline import DepthAIPipeline
+from vision_processing.opencv_processor import OpenCVProcessor
 
 from file_handling.image_saver import ImageSaver
 
@@ -17,8 +18,8 @@ from data_transmission.flask_server_handler import FlaskServerHandler
 from data_transmission.tcp_receiver import TCPReceiver
 from data_transmission.udp_sender import UDPSender
 
-class MainController:
 
+class MainController:
     # -- Flags -- #
     capture_input_frame = False
     capture_output_frame = False
@@ -38,12 +39,12 @@ class MainController:
         self.image_saver = ImageSaver()
 
         # Data Transmission
-        self.tcp_receiver = TCPReceiver(self, ip=self.ROBORIO_IP)
-        self.udp_sender = UDPSender(ip=self.ROBORIO_IP)
+        #self.tcp_receiver = TCPReceiver(self, ip=self.ROBORIO_IP)
+        #self.udp_sender = UDPSender(ip=self.ROBORIO_IP)
         self.flask_server_handler = FlaskServerHandler(self.ROBORIO_PORT)
 
         # Map Management
-        self.branch_manager = BranchManager('config/scoring_positions.yml')
+        self.branch_manager = BranchManager('config\scoring_positions.yml')
         self.kdtree_manager = KDTreeManager(self.branch_manager)
 
         self.block_detector = BlockDetectionManager(branch_manager=self.branch_manager,algae_block_threshold=0.5,coral_block_threshold=0.5)
@@ -53,18 +54,18 @@ class MainController:
             "x": 0,
             "y": 0,
             "z": 0,
-            "pitch" : 0,
-            "roll" : 0,
+            "pitch": 0,
+            "roll": 0,
             "yaw": 0
         }
 
     def start(self):
-        # Setup the DepthAI Pipeline
+        # Set up the DepthAI Pipeline
         self.depthai_pipeline.start_pipeline()
         self.opencv_processor.start_processor()
 
         # Start Data Transmission
-        self.tcp_receiver.start()
+        #self.tcp_receiver.start()
 
         # Start the Flask server in a separate thread
         threading.Thread(target=self.flask_server_handler.run, daemon=True).start()
@@ -99,7 +100,7 @@ class MainController:
                     continue
 
                 # Process the new frame
-                processed_frame, algae_positions, coral_positions = self.opencv_processor.process_frame(color_frame, depth_frame)
+                processed_frame, algae_positions, coral_positions = self.opencv_processor.process_frame(color_frame,                                                                                     depth_frame)
 
                 # Build KD-trees from new obstacle data
                 self.block_detector.build_obstacle_kdtrees(algae_positions=algae_positions, coral_positions=coral_positions)
@@ -111,20 +112,23 @@ class MainController:
 
                 # Prepare the algae_positions list for JSON (already in desired format)
                 # Ensure that algae_positions is a list of dicts with "x", "y", "z"
-
                 # Send the data to RoboRIO
-                self.udp_sender.upload_data(
-                    available=available,
-                    algae_blocked=algae_blocked,
-                    algae_positions=algae_positions
-                )
+                #self.udp_sender.upload_data(
+                #    available=available,
+                #    algae_blocked=algae_blocked,
+                #    algae_positions=algae_positions
+                #)
 
-                # Display the processed video frame
+                # Display the processed video frame on the web dashboard.
                 self.flask_server_handler.update_frame(processed_frame)
 
                 # Display the frames - Disable when running on PI.
-                cv2.imshow("Input Frame", color_frame)
-                cv2.imshow("Output Frame", processed_frame)
+                #cv2.imshow("Output Frame", processed_frame)
+                #cv2.imshow("Depth", depth_frame)
+
+                # Capture the input frame if the user is pressing K
+                if cv2.waitKey(1) == ord('k'):
+                    self.capture_input_frame = True
 
                 # If told to save the images, save them, and toggle the capture flags.
                 if self.capture_input_frame:
@@ -144,8 +148,8 @@ class MainController:
         finally:
             cv2.destroyAllWindows()
             self.depthai_pipeline.stop_pipeline()
-            self.udp_sender.close()
-            self.tcp_receiver.stop()
+            #self.udp_sender.close()
+            #self.tcp_receiver.stop()
 
     def save_frames(self, save_input_frame, save_output_frame, save_depth_frame):
         """
@@ -181,8 +185,8 @@ class MainController:
         else:
             print(f"Alliance switched to {alliance.capitalize()} successfully.")
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
