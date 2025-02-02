@@ -16,7 +16,6 @@ class ImageSaver:
         """
         self.default_folder = default_folder or self.get_default_folder()
 
-    @staticmethod
     def get_default_folder(self):
         """
         Returns the path to the \"Photos\" folder in the user's Documents folder in a cross-platform way.
@@ -48,13 +47,14 @@ class ImageSaver:
         
         # Get the current system time.
         now = datetime.datetime.now()
-        formatted_time = now.strftime("%B %d, %Y %H:%M:%S")
+        formatted_time = now.strftime("_%Y-%m-%d_%H-%M-%S")
 
         # Construct the file path, adding the current time to the file name to ensure a unique name.
-        file_path = os.path.join(save_folder, filename + formatted_time + ".png")
+        file_path = os.path.join(save_folder, f"{filename}{formatted_time}.jpg")
 
         # Save the image
-        cv2.imwrite(file_path, image)
+        sucsess = cv2.imwrite(file_path, image)
+        print(sucsess)
         print(f"Image saved to {file_path}")
 
         return file_path

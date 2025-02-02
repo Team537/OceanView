@@ -6,29 +6,29 @@ branch_settings:
 
 branches: # Note than angle is offset by 180 degrees when on blue alliance.
     - name: "A"
-    angle_deg: -17.5
+      angle_deg: -17.5
     - name: "B"
-    angle_deg: 17.5
+      angle_deg: 17.5
     - name: "C"
-    angle_deg: 42.5
+      angle_deg: 42.5
     - name: "D"
-    angle_deg: 77.5
+      angle_deg: 77.5
     - name: "E"
-    angle_deg: 102.5
+      angle_deg: 102.5
     - name: "F"
-    angle_deg: 137.5
+      angle_deg: 137.5
     - name: "G"
-    angle_deg: 162.5
+      angle_deg: 162.5
     - name: "H"
-    angle_deg: -162.5
+      angle_deg: -162.5
     - name: "I"
-    angle_deg: -137.5
+      angle_deg: -137.5
     - name: "J"
-    angle_deg: -102.5
+      angle_deg: -102.5
     - name: "K"
-    angle_deg: -77.5
+      angle_deg: -77.5
     - name: "L"
-    angle_deg: -42.5
+      angle_deg: -42.5
 
 center_of_reef: # TODO: Fill in remaining text!
     radius: 0.54901342212

@@ -7,7 +7,7 @@ import datetime
 
 class FlaskServerHandler:
     def __init__(self, roborio_port):
-        self.app = Flask(__name__)
+        self.app = Flask(__name__, template_folder="../templates", static_folder="../static")
         self.frame_lock = threading.Lock()  # Ensures thread-safe access to the frame
         self.current_frame = None  # Stores the latest frame
 
