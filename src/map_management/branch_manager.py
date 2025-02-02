@@ -1,6 +1,6 @@
 # map_management/branch_manager.py
 import yaml
-from branch import Branch
+from map_management.branch import Branch
 
 class BranchManager:
     def __init__(self, yaml_file):
@@ -22,7 +22,7 @@ class BranchManager:
             data = yaml.safe_load(file)
 
         # Extract branch settings from 'branchSettings'
-        branch_settings = data.get('branchSettings', {})
+        branch_settings = data.get('branch_settings', {})
         self.level_heights = {
             'L2': branch_settings.get('L2_height'),
             'L3': branch_settings.get('L3_height'),
