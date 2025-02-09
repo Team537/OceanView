@@ -127,16 +127,6 @@ class TCPReceiver:
             # If your main_controller expects x, y, heading, do something like:
             self.main_controller.update_robot_pose(robot_pose)
 
-        # 3) If the robot sends simpler keys, e.g. "x", "y", "heading":
-        #    If your JSON is like: {"x": 1.23, "y": 4.56, "heading": 0.78}, use:
-        """
-        if "x" in parsed_data and "y" in parsed_data and "heading" in parsed_data:
-            x = parsed_data["x"]
-            y = parsed_data["y"]
-            heading = parsed_data["heading"]
-            self.main_controller.update_robot_pose({"x": x, "y": y, "heading": heading})
-        """
-
     def stop(self):
         """
         Stops the TCP server and releases all resources.
