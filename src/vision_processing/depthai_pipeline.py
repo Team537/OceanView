@@ -88,7 +88,7 @@ class DepthAIPipeline:
         xout_video = pipeline.createXLinkOut()
         xout_video.setStreamName("video")
         # Link the preview output of the camera to the XLink output.
-        cam.preview.link(xout_video.input)
+        cam.isp.link(xout_video.input)
 
         # For the depth stream.
         xout_depth = pipeline.createXLinkOut()

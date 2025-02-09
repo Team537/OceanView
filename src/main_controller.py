@@ -18,7 +18,6 @@ from data_transmission.flask_server_handler import FlaskServerHandler
 from data_transmission.tcp_receiver import TCPReceiver
 from data_transmission.udp_sender import UDPSender
 
-
 class MainController:
     # -- Flags -- #
     capture_input_frame = False
@@ -27,7 +26,10 @@ class MainController:
 
     # -- Constants -- #
     ROBORIO_IP = "10.5.37.2"
-    ROBORIO_PORT = 5000
+    COPROCESSOR_IP = "10.5.37.57"
+    DASHBOARD_PORT = 5000
+    UDP_PORT = 5200
+    TCP_PORT = 5300
 
     def __init__(self):
 
@@ -39,9 +41,9 @@ class MainController:
         self.image_saver = ImageSaver()
 
         # Data Transmission
-        #self.tcp_receiver = TCPReceiver(self, ip=self.ROBORIO_IP)
-        #self.udp_sender = UDPSender(ip=self.ROBORIO_IP)
-        self.flask_server_handler = FlaskServerHandler(self.ROBORIO_PORT)
+        self.tcp_receiver = TCPReceiver(self, ip=self.COPROCESSOR_IP, port=self.TCP_PORT)
+        self.udp_sender = UDPSender(ip=self.ROBORIO_IP, port=self.UDP_PORT)
+        self.flask_server_handler = FlaskServerHandler(self.DASHBOARD_PORT)
 
         # Map Management
         self.branch_manager = BranchManager('config\scoring_positions.yml')
@@ -60,12 +62,13 @@ class MainController:
         }
 
     def start(self):
+
         # Set up the DepthAI Pipeline
         self.depthai_pipeline.start_pipeline()
         self.opencv_processor.start_processor()
 
         # Start Data Transmission
-        #self.tcp_receiver.start()
+        self.tcp_receiver.start()
 
         # Start the Flask server in a separate thread
         threading.Thread(target=self.flask_server_handler.run, daemon=True).start()
@@ -124,7 +127,7 @@ class MainController:
 
                 # Display the frames - Disable when running on PI.
                 #cv2.imshow("Output Frame", processed_frame)
-                #cv2.imshow("Depth", depth_frame)
+                cv2.imshow("Depth", depth_frame)
 
                 # Capture the input frame if the user is pressing K
                 if cv2.waitKey(1) == ord('k'):
@@ -148,8 +151,8 @@ class MainController:
         finally:
             cv2.destroyAllWindows()
             self.depthai_pipeline.stop_pipeline()
-            #self.udp_sender.close()
-            #self.tcp_receiver.stop()
+            self.udp_sender.close()
+            self.tcp_receiver.stop()
 
     def save_frames(self, save_input_frame, save_output_frame, save_depth_frame):
         """
@@ -185,8 +188,8 @@ class MainController:
         else:
             print(f"Alliance switched to {alliance.capitalize()} successfully.")
 
-
 if __name__ == "__main__":
+    
     # Configure logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
