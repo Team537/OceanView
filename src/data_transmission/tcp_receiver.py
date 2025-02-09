@@ -98,6 +98,10 @@ class TCPReceiver:
 
         :param parsed_data: Dictionary (or list) from the JSON.
         """
+        # Make sure that the given data is a list
+        if not isinstance(parsed_data, list):
+            parsed_data = [parsed_data]
+
         # 1) If "capture" data is present, handle it
         if "capture" in parsed_data and parsed_data["capture"] is not None:
             # Example: the 'capture' might contain frames to be saved
