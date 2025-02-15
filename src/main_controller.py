@@ -46,7 +46,7 @@ class MainController:
         self.flask_server_handler = FlaskServerHandler(self.DASHBOARD_PORT)
 
         # Map Management
-        self.branch_manager = BranchManager('config\scoring_positions.yml')
+        self.branch_manager = BranchManager('config/scoring_positions.yml')
         self.kdtree_manager = KDTreeManager(self.branch_manager)
 
         self.block_detector = BlockDetectionManager(branch_manager=self.branch_manager,algae_block_threshold=0.5,coral_block_threshold=0.5)
