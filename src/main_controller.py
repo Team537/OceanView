@@ -41,7 +41,7 @@ class MainController:
         self.image_saver = ImageSaver()
 
         # Data Transmission
-        self.tcp_receiver = TCPReceiver(self, ip=self.COPROCESSOR_IP, port=self.TCP_PORT)
+        self.tcp_receiver = TCPReceiver(self, port=self.TCP_PORT)
         self.udp_sender = UDPSender(ip=self.ROBORIO_IP, port=self.UDP_PORT)
         self.flask_server_handler = FlaskServerHandler(self.DASHBOARD_PORT)
 
