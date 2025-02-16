@@ -59,7 +59,7 @@ class ImageSaver:
             os.makedirs(save_folder)
         
         now = datetime.datetime.now()
-        formatted_time = now.strftime("_%Y-%m-%d_%H-%M-%S")
+        formatted_time = now.strftime("_%Y-%m-%d_%H-%M-%S.%f")[:-3]
         file_path = os.path.join(save_folder, f"{filename}{formatted_time}.png")
 
         success = cv2.imwrite(file_path, image)
