@@ -17,6 +17,7 @@ from file_handling.image_saver import ImageSaver
 from data_transmission.flask_server_handler import FlaskServerHandler
 from data_transmission.tcp_receiver import TCPReceiver
 from data_transmission.udp_sender import UDPSender
+from data_transmission.time_sync_server import TimeSyncServer
 
 class MainController:
     # -- Flags -- #
@@ -30,6 +31,7 @@ class MainController:
     DASHBOARD_PORT = 5000
     UDP_PORT = 5200
     TCP_PORT = 5300
+    TIME_SYNC_PORT = 6000
 
     def __init__(self):
 
@@ -44,6 +46,9 @@ class MainController:
         self.tcp_receiver = TCPReceiver(self, port=self.TCP_PORT)
         self.udp_sender = UDPSender(ip=self.ROBORIO_IP, port=self.UDP_PORT)
         self.flask_server_handler = FlaskServerHandler(self.DASHBOARD_PORT)
+
+        # Time Synchronization
+        self.time_sync_server = TimeSyncServer(ip="0.0.0.0", port=self.TIME_SYNC_PORT)  # Use port 6000 for time sync
 
         # Map Management
         self.branch_manager = BranchManager('config/scoring_positions.yml')
@@ -72,6 +77,9 @@ class MainController:
 
         # Start the Flask server in a separate thread
         threading.Thread(target=self.flask_server_handler.run, daemon=True).start()
+
+        # Start the Time Synchronization Server (UDP)
+        self.time_sync_server.start()
 
         # Start the main program loop
         self.main_loop()
@@ -102,8 +110,11 @@ class MainController:
                     time.sleep(0.01)  # Prevent the CPU from running as fast as possible.
                     continue
 
+                # Capture the timestamp (in nanoseconds) when the frames were received
+                timestamp = time.time_ns()  # This is the timestamp for the current frame
+
                 # Process the new frame
-                processed_frame, algae_positions, coral_positions = self.opencv_processor.process_frame(color_frame,                                                                                     depth_frame)
+                processed_frame, algae_positions, coral_positions = self.opencv_processor.process_frame(color_frame, depth_frame)
 
                 # Build KD-trees from new obstacle data
                 self.block_detector.build_obstacle_kdtrees(algae_positions=algae_positions, coral_positions=coral_positions)
@@ -116,11 +127,13 @@ class MainController:
                 # Prepare the algae_positions list for JSON (already in desired format)
                 # Ensure that algae_positions is a list of dicts with "x", "y", "z"
                 # Send the data to RoboRIO
-                #self.udp_sender.upload_data(
-                #    available=available,
-                #    algae_blocked=algae_blocked,
-                #    algae_positions=algae_positions
-                #)
+                # Send the data to the RoboRIO with the timestamp
+                self.udp_sender.upload_data_with_timestamp(
+                    available, 
+                    algae_blocked, 
+                    algae_positions, 
+                    timestamp
+                )
 
                 # Display the processed video frame on the web dashboard.
                 self.flask_server_handler.update_frame(processed_frame)
@@ -153,6 +166,7 @@ class MainController:
             self.depthai_pipeline.stop_pipeline()
             self.udp_sender.close()
             self.tcp_receiver.stop()
+            self.time_sync_server.stop()
 
     def save_frames(self, save_input_frame, save_output_frame, save_depth_frame):
         """
