@@ -49,10 +49,10 @@ class TimeSyncServer:
             try:
                 data, addr = udp_socket.recvfrom(2048)
                 # Capture the time immediately when the packet is received (T2)
-                t2 = time.time_ns()
+                t2 = time.monotonic_ns()
                 # (Processing of the packet can occur here, if needed)
                 # Capture the time immediately before sending the response (T3)
-                t3 = time.time_ns()
+                t3 = time.monotonic_ns()
                 
                 # Create a JSON response with t2 and t3
                 response = {"t2": t2, "t3": t3}
