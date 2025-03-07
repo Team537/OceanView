@@ -111,7 +111,7 @@ class MainController:
                     continue
 
                 # Capture the timestamp (in nanoseconds) when the frames were received
-                timestamp = time.time_ns()  # This is the timestamp for the current frame
+                timestamp = time.monotonic_ns()  # This is the timestamp for the current frame
 
                 # Process the new frame
                 processed_frame, algae_positions, coral_positions = self.opencv_processor.process_frame(color_frame, depth_frame)
